@@ -1,0 +1,131 @@
+#!/usr/bin/bash
+
+#Execução do script main de cada accn e gene
+./script "DQ385300:DQ385428[accn],rag-1[gene]" rag1
+./script "DQ385300:DQ385428[accn],gapd[gene]" gapd
+./script "DQ385300:DQ385428[accn],bdnf[gene]" bdnf
+./script "DQ385300:DQ385428[accn],ND1[gene]" ND1
+./script "DQ385300:DQ385428[accn],ND2[gene]" ND2
+./script "DQ385300:DQ385428[accn],12S" 12S
+./script "AY141051:AY141062[accn]|AY141048[accn]|AY141049[accn]|AY141066[accn],ND4[gene]" ND4
+./script "AY141086:AY141100[accn]|AY141102[accn]|AY141104[accn],cytb[gene]" cytb
+
+#Execução do script NADH4
+./NADH4
+
+#Criação de uma lista com os nomes dos genes que o ficheiro respetivo está no formato fasta
+lista_fasta=("rag1" "bdnf" "gapd" "ND1" "ND2" "12S" "cytb")
+for i in ${lista_fasta[@]}; #$i é a variàvel usada para percorrer a lista 1 por 1
+do
+        seqmagick convert --output-format nexus --alphabet dna ~/Files_assignment1/fastaALN/$i'_aln.fasta' ~/Files_assignment1/nexus/$i.nex
+done #Acaba o for loop
+
+#Criação de uma lista com os nomes dos genes que o ficheiro respetivo está no formato fas
+lista_fas=("nuclear" "total")
+for i in ${lista_fas[@]};
+do
+        seqmagick convert --output-format nexus --alphabet dna ~/Files_assignment1/$i/$i.fas ~/Files_assignment1/nexus/$i.nex
+done #Acaba o for loop
+
+seqmagick convert --output-format nexus --alphabet dna ~/Files_assignment1/mitochondrial/mtDNA.fas ~/Files_assignment1/nexus/mtDNA.nex
+seqmagick convert --output-format nexus --alphabet dna ~/Files_assignment1/ND4/ND4_conc_aln.fas ~/Files_assignment1/nexus/ND4.nex
+
+#Explicação mais detalhada dos comandos das funções jmodeltest no script main
+#A função jmodeltest_mtDNA calcula o melhor modelo para o ficheiro da concatenação de todos os genes mitocondriais
+jmodeltest_mtDNA() {
+bestmodelfile=$(java -jar ~/jmodeltest-2.1.10/jModelTest.jar -d ~/Files_assignment1/nexus/mtDNA.nex -s 3 -f -g 4 -t ML -S BEST -AICc -o ~/Files_assignment1/jmodeltest/mtDNA_best)
+bestmodel=$(grep -o "AICc.*" ~/Files_assignment1/jmodeltest/mtDNA_best | tail -1 | sed 's/0.*//' | perl -pe 's/AICc.*? //')
+echo "BestModel for mtDNA" = $bestmodel
+}
+#Execução da função acima
+jmodeltest_mtDNA
+
+jmodeltest_nuclear() {
+bestmodelfile=$(java -jar ~/jmodeltest-2.1.10/jModelTest.jar -d ~/Files_assignment1/nexus/nuclear.nex -s 3 -f -g 4 -t ML -S BEST -AICc -o ~/Files_assignment1/jmodeltest/nuclear_best)
+bestmodel=$(grep -o "AICc.*" ~/Files_assignment1/jmodeltest/nuclear_best | tail -1 | sed 's/0.*//' | perl -pe 's/AICc.*? //')
+echo "BestModel for nuclear" = $bestmodel
+}
+#Execução da função acima
+jmodeltest_nuclear
+
+jmodeltest_total() {
+bestmodelfile=$(java -jar ~/jmodeltest-2.1.10/jModelTest.jar -d ~/Files_assignment1/nexus/total.nex -s 3 -f -g 4 -t ML -S BEST -AICc -o ~/Files_assignment1/jmodeltest/total_best)
+bestmodel=$(grep -o "AICc.*" ~/Files_assignment1/jmodeltest/total_best | tail -1 | sed 's/0.*//' | perl -pe 's/AICc.*? //')
+echo "BestModel for total" = $bestmodel
+}
+#Execução da função acima
+jmodeltest_total
+
+#As funçẽs do raxml copia o ficheiro das sequências já alinhadas para o diretório home (~/) pois se nós metermos um caminho "extenso" ou com o ficheiro dentro de pastas não vai resultar
+#O comando raxmlHPC cria 5 ficheiros diferentes sendo que o que tem o nome "RAxML_bipartitions.nomedogene_ResultTreeBoot" é o que vai ser usado para depois visualizar a árvore através de outro programa
+raxml_mtDNA() {
+cp ~/Files_assignment1/mitochondrial/mtDNA.fas ~/ #copia o ficheiro mtDNA.fas para a home
+raxmlHPC -f a -x 12347 -m GTRGAMMA -s mtDNA.fas -n mtDNA_ResultTreeBoot -p 12347 -N 100
+mv *RA* ~/Files_assignment1/trees/mtDNA #Move todos os ficheiros começados em RA(...)
+rm ~/mtDNA.fas #Elimina o ficheiro anteriormente copiado para não gerar confusão
+}
+#Execução da função acima
+raxml_mtDNA
+
+#Criação de uma lista com os nomes dos genes que o ficheiro respetivo está no formato fasta
+lista_fasta2=("rag1" "bdnf" "gapd")
+for i in ${lista_fast2[@]}; #$i é a variàvel usada para percorrer a lista 1 por 1
+do
+        cp ~/Files_assignment1/fastaALN/$i'_aln.fasta' ~/
+        raxmlHPC -f a -x 12347 -m GTRGAMMA -s $i'_aln.fasta' -n $i'_ResultTreeBoot' -p 12347 -N 100
+        mv *RA* ~/Files_assignment1/trees/$i
+        rm ~/$i'_aln.fasta'
+done #Acaba o for loop
+
+#Criação de uma lista com os nomes dos genes que o ficheiro respetivo está no formato fas
+lista_fas2=("nuclear" "total")
+for i in ${lista_fas2[@]};
+do
+        cp ~/Files_assignment1/$i/$i.fas ~/
+        raxmlHPC -f a -x 12347 -m GTRGAMMA -s $i.fas -n $i'_ResultTreeBoot' -p 12347 -N 100
+        mv *RA* ~/Files_assignment1/trees/$i
+        rm ~/$i.fas
+done #Acaba o for loop
+
+#Especificações dos comandos (raxml):
+# -f a -> diz ao raxml para usar um método de analise e pesquisa bootstrap rápido para os melhores valores da árvore ML (Maximum-Likelihood) em uma só execução do programa
+# -x -> especifica um número inteiro e liga o método de bootstrap rápido
+# -m -> determina o modelo de substituição da árvore (neste caso como todos os resultados do jmodeltest deram (...)+G a opção será GTRGAMMA para todos)
+# -s -> input do ficheiro de dados
+# -n -> output do ficheiro de dados
+# -p -> especifica um número inteiro para as inferências de parsimonia
+# -N -> número de testes que o programa vai correr
+
+#Criação de uma lista com os nomes dos genes que do ficheiro respetivo (.nex)
+lista_genes=("rag1" "bdnf" "gapd" "mtDNA" "nuclear" "total")
+for i in ${lista_genes[@]}; #$i é a variàvel usada para percorrer a lista 1 por 1
+do
+        cp ~/Files_assignment1/nexus/$i.nex ~/ #copia o ficheiro nexus de cada gene para a home (~/)
+        touch ~/grep_file #cria o ficheiro grep_file no mesmo diretório
+        grep_file=$(grep -o 'P.*' ~/$i.nex | tail -3 > ~/grep_file) #variável que vai buscar as últimas 3 espécies do ficheiro nexus
+        sp=$(grep -m1 "" ~/grep_file | perl -pe 's/ .*?/>/' | sed 's/>.*//') #esta variável pega a 1ª espécie das 3 | o perl troca o 1º espaço por um ">" | o sed elimina tudo o que está à frente do ">" 
+        outgroup=$(sed 's/$sp;/'$sp';/' ~/mrbayes > ~/mrbayes1) #aqui este sed vai substituir o "$sp;" pela variável acima criada (que é o nome da antepenúltima espécie do ficheiro nexus) para o ficheiro mrbayes1
+        cat ~/mrbayes1 | tee -a ~/$i.nex #imprime o que está dentro do ficheiro mrbaeys1 e faz o append do mesmo no final do ficheiro nexus
+        mb ~/$i.nex #executa o MrBayes do ficheiro nexus
+        #O MrBayes cria vários ficheiros com árvores e etc mas, o que nos interessa para ver a árvore e os valores de probabilidade é o que tem "con.tre" no nome
+        mv *con.tre* ~/Files_assignment1/trees/$i #move o ficheiro que tem "con.tre" no nome para a pasta das árvores do gene
+        rm *mb_test* #remove todos os ficheiros com "mb_test" no nome
+        rm ~/$i.nex #remove o ficheiro nexus anteriormente copiado para não criar confusão
+        rm ~/grep_file #remove o ficheiro grep_file
+done #Acaba o for loop
+
+#FIGTREE
+#Para correr e colocar os valores bootstrap no ficheiros do RAxML:
+# - Execute o comando figtree nomedoficheiro;
+# - Abrirá uma janela a perguntar se quer mudar o nome da opção que tem os bootstrap. Pode optar por mudar ou só clicar em OK;
+# - Clicar na espécie Uta stansburiana e depois clicar na barra de cima onde diz Reroot;
+# - Abrir e ativar o campo Branch Labels;
+# - Na 1ª opção selecionar o nome da opção que foi trocado no passo dois ou se não trocou selecione a opção label;
+# - Terá os valores de bootstrap nos ramos da árvore filogenética.
+#
+#Para correr e colocar os valores bootstrap no ficheiro do MrBayes;
+# - Seguir o mesmo processo de execução;
+# - Em vez de abrirr uma janela a perguntar para mudar o nome da opção não aparecerá nada e abrirá o programa normalmente;
+# - Abrir e ativar o campo Branch Labels;
+# - Na 1ª opção selecionar a opção prob;
+# - Pode optar por escolher a opção prob(percentage) que em vez de mostrar valores decimais, mostra as percentagens dos mesmos.

@@ -1,0 +1,123 @@
+#!/usr/bin/bash
+
+#if [[ ! -f <~/Files_assignment1> ]]
+#then
+    mkdir ~/Files_assignment1
+    mkdir ~/Files_assignment1/xml
+    mkdir ~/Files_assignment1/fasta
+    mkdir ~/Files_assignment1/fastaALN
+    mkdir ~/Files_assignment1/jmodeltest
+    mkdir ~/Files_assignment1/nexus
+    mkdir ~/Files_assignment1/mitochondrial
+    mkdir ~/Files_assignment1/nuclear
+    mkdir ~/Files_assignment1/total
+    mkdir ~/Files_assignment1/ND4_conc
+    mkdir ~/Files_assignment1/trees
+    mkdir ~/Files_assignment1/trees/rag1
+    mkdir ~/Files_assignment1/trees/bdnf
+    mkdir ~/Files_assignment1/trees/gapd
+    mkdir ~/Files_assignment1/trees/mtDNA
+    mkdir ~/Files_assignment1/trees/nuclear
+    mkdir ~/Files_assignment1/trees/total
+#else
+#    echo "The directory ~/Files_assignment1 exists on your filesystem."
+#fi
+
+######   Detalhes   #######
+#Parametros usados neste script são:
+# $1 = term (exemplo: "DQ385300:DQ385428[accn],rag-1[gene]")
+# $2 = nome do gene que servirá para o nome dos ficheiros todos (exemplo: rag1)
+# Exemplo de execução do script:
+#   ./script "DQ385300:DQ385428[accn],rag-1[gene]" rag1
+
+echo "MOVER TODOS OS FICHEIROS PARA O DIRETÓRIO HOME (~/) !!!!!!!!"
+
+chmod +777 script2
+chmod +777 NADH4
+
+#A função eSearch_history vai buscar o ficheiro em formato xml ($2.xml) da accn (acession number) e do gene referido no term ($1)
+eSearch_history() {
+xmlfile=$(wget 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi/?db=nucleotide&term='$1'&usehistory=y' -O ~/Files_assignment1/xml/$2.xml)
+query_key=$(grep -o "<QueryKey>.*</QueryKey>" ~/Files_assignment1/xml/$2.xml | sed 's/<QueryKey>//' | sed 's/<\/QueryKey>//' )
+WebEnv=$(grep -o "<WebEnv>.*</WebEnv>" ~/Files_assignment1/xml/$2.xml | sed 's/<WebEnv>//' | sed 's/<\/WebEnv>//' )
+echo Query_Key = "$query_key" #Print da Query_key obtida através do comando acima (query_key=$(grep ...))
+echo WebEnv = "$WebEnv" #Print da Query_key obtida através do comando acima (WebEnv=$(grep ...))
+}
+#Execução da função eSearch_history com os parametros dados através da shell
+eSearch_history $1 $2
+
+#A função eFetch_history vai buscar os valores da query_key e do WebEnv ao ficheiro $2.xml para depois serem usados no "download" das sequências do determinado gene 
+eFetch_history() {
+query_key=$(grep -o "<QueryKey>.*</QueryKey>" ~/Files_assignment1/xml/$2.xml  | sed 's/<QueryKey>//' | sed 's/<\/QueryKey>//' )
+WebEnv=$(grep -o "<WebEnv>.*</WebEnv>" ~/Files_assignment1/xml/$2.xml | sed 's/<WebEnv>//' | sed 's/<\/WebEnv>//' )
+#Vai fazer o download com as sequências de nucleótidos da accn (acession number) e gene definidos de acordo com o term da função acima ($1) para o ficheiro ($2.fasta)
+fastafile=$(wget 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi/?db=nucleotide&query_key='$query_key'&WebEnv='$WebEnv'&usehistory=y&rettype=fasta' -O ~/Files_assignment1/fasta/$2.fasta)
+#Cria o ficheiro seds.fasta no diretório home (~/)
+touch ~/seds.fasta
+#Conjunto de formatações do ficheiro fasta para que acima de cada sequência apareça como por exemplo ">Phrynosoma_asio" e passa estas mesmas formatações para o ficheiro criado acima com o comando touch
+(sed 's/voucher.*//' ~/Files_assignment1/fasta/$2.fasta | sed 's/12S.*//' | sed 's/ribosomal.*//' |  sed 's/recombination.*//' | sed 's/isolate.*//' | sed 's/brain-derived.*//' | sed 's/glyceraldehyde-3.*//' | sed 's/haplotype.*//' | sed 's/sp.*//' | sed 's/NADH.*//' | sed 's/ND4.*//' | sed 's/cytochrome.*//' | sed 's/cytb.*//' | perl -pe 's/>.*? />/' | perl -pe 's/Phrynosoma.*? /Phrynosoma_/' | sed 's/Phrynosoma_goodei x mcallii.*/Phrynosoma_goodei_X_mcallii/' | perl -pe 's/Uta.*? /Uta_/' | perl -pe 's/Holbrookia.*? /Holbrookia_/') > ~/seds.fasta
+#Copia o ficheiro "limpo" para o ficheiro $2.fasta
+cp ~/seds.fasta ~/Files_assignment1/fasta/$2.fasta
+#Remove o ficheiro de formatação para depois conseguir voltar a criar e fazer o mesmo processo
+rm ~/seds.fasta
+}
+#Executar a função eFetch_history para ir buscar as sequências do gene especificado pelo term ($1)
+eFetch_history $1 $2
+
+#Função para alinhar as sequências de cada gene através do mafft
+#O comando mafft recebe um ficheiro como input ($2.fasta) e depois do alinhamento faz o redirect para o ficheiro $2_aln.fasta
+alignment_mafft() {
+mafft ~/Files_assignment1/fasta/$2.fasta > ~/Files_assignment1/fastaALN/$2_aln.fasta
+}
+#Execução da função de alinhamento
+alignment_mafft $1 $2
+
+#Concatenação foi feita no megaX
+#Tivémos que fazer uma concatenação do ficheiro NADH4_aln.fasta e ND4_aln.fasta pois são o mesmo gene mas as formas de pesquisa eram outras.
+#ATENÇÃO!!! Para tudo ser concatenado é preciso meter os ficheiros que queremos concatenar numa pasta só!!!
+#Para tal precisa-se seguir os seguintes passos:
+# - O script cria várias pastas próprias para este passo (mitochondrial/nuclear/total/ND4_conc)
+# - Colocar numa pasta os ficheiros dos genes respetivos para prosseguir
+# - Abrir o mega (corra o comando "mega" no cmd ou abra manualmente)
+# - Clicar em Data > Concatenate Sequences Alignments
+# - Selecionar a pasta dos ficheiros que quer concatenar > Nucleotide Sequences > OK
+
+#Para exportar o ficheiro concatenado:
+# - Clicar em Data > Export Data
+# - Selecionar o tipo de ficheiro (no nosso caso selecionámos o formato fasta)
+# - Definir o seu nome e a pasta de destino
+#CONVÉM!!! O ficheiro de concatenado do ND4 (ND4_conc_aln.fasta) convém estar tanto na pasta fastaALN como na pasta mitochondrial para depois se suceder a concatenação dos genes mitocondriais
+
+#Função para converter ficheiros .fasta em .nex (nexus)
+seqmagick() {
+nomefasta=$2_aln.fasta
+nex=$2.nex
+la=$(seqmagick convert --output-format nexus --alphabet dna ~/Files_assignment1/fastaALN/$nomefasta ~/Files_assignment1/nexus/$nex)
+}
+#Tentámos de várias maneiras sendo que esta foi a última... o erro que nos dá no final é "Segmentation fault"
+#seqmagick $1 $2
+
+#Função para calcular o melhor modelo para depois criar a sua árvore filogenética
+jmodeltest() {
+#Na variável $bestmodelfile recebe-se um ficheiro nexus como input de cada gene/concatenação para depois fazer a escolha do melhor modelo
+bestmodelfile=$(java -jar ~/jmodeltest-2.1.10/jModelTest.jar -d ~/Files_assignment1/nexus/$2.nex -s 3 -f -g 4 -t ML -S BEST -AICc -o ~/Files_assignment1/jmodeltest/$2_best)
+#Abaixo nós vamos buscar o melhor modelo ao ficheiro criado com o comando acima
+bestmodel=$(grep -o "AICc.*" ~/Files_assignment1/jmodeltest/$2_best | tail -1 | sed 's/0.*//' | perl -pe 's/AICc.*? //')
+#Print do melhor modelo para o gene definido pelo parametro $2
+echo "BestModel for" $2 = $bestmodel
+}
+#Execução da função jmodeltest
+jmodeltest $1 $2
+
+echo "ATENÇÃO!!! TEM QUE FAZER A CONCATENAÇÃO PELO MEGA PARA TER O FICHEIRO NEXUS DO ND4, MTDNA, NUCLEAR E TOTAL"
+
+#Especificações do comando (bestmodelfile):
+# -d input do ficheiro de dados
+# -s número de esquemas de substituição
+# -f inclui modelos com diferentes frequências base
+# -g inclui modelos com variação ratio entre sites e configura o número de categorias
+# -t escolhe a topologia de cada modelo
+# -S define a operação de procura da topologia de árvore para uma procura virada para ML (Maximum-Likelihood)
+# -AICc calcula o Akaike Information Criterion correto
+# -o output do ficheiro de dados
+

@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+
+#ATENÇÃO!!!
+#Todas as especificações destas funções estão no script main
+#Este script foi criado para simplificação de código no script2 e porque esta é uma das maneiras para ir buscar as sequências do gene mitocondrial ND4
+
+eSearch_history() {
+xmlfile=$(wget 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi/?db=nucleotide&term=DQ385300:DQ385428[accn],NADH4[gene]&usehistory=y' -O ~/Files_assignment1/xml/NADH4.xml)
+query_key=$(grep -o "<QueryKey>.*</QueryKey>" ~/Files_assignment1/xml/NADH4.xml | sed 's/<QueryKey>//' | sed 's/<\/QueryKey>//' )
+WebEnv=$(grep -o "<WebEnv>.*</WebEnv>" ~/Files_assignment1/xml/NADH4.xml | sed 's/<WebEnv>//' | sed 's/<\/WebEnv>//' )
+echo Query_Key = "$query_key" #Print da Query_key obtida através do comando acima (query_key=$(grep ...))
+echo WebEnv = "$WebEnv" #Print da Query_key obtida através do comando acima (WebEnv=$(grep ...))
+}
+#Execução da função eSearch_history para procurar os ids e os parametros (query_key e WebEnv) para serem usados na função abaixo
+eSearch_history
+
+eFetch_history() {
+query_key=$(grep -o "<QueryKey>.*</QueryKey>" ~/Files_assignment1/xml/NADH4.xml  | sed 's/<QueryKey>//' | sed 's/<\/QueryKey>//' )
+WebEnv=$(grep -o "<WebEnv>.*</WebEnv>" ~/Files_assignment1/xml/NADH4.xml | sed 's/<WebEnv>//' | sed 's/<\/WebEnv>//' )
+#Vai fazer o download do ficheiro NADH4.fasta com as sequências de nucleótidos
+fastafile=$(wget 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi/?db=nucleotide&query_key='$query_key'&WebEnv='$WebEnv'&usehistory=y&rettype=fasta' -O ~/Files_assignment1/fasta/NADH4.fasta)
+touch ~/seds.fasta
+(sed 's/voucher.*//' ~/Files_assignment1/fasta/NADH4.fasta | sed 's/12S.*//' | sed 's/ribosomal.*//' |  sed 's/recombination.*//' | sed 's/isolate.*//' | sed 's/brain-derived.*//' | sed 's/glyceraldehyde-3.*//' | sed 's/haplotype.*//' | sed 's/sp.*//' | sed 's/NADH.*//' | sed 's/ND4.*//' | sed 's/cytochrome.*//' | sed 's/cytb.*//' | perl -pe 's/>.*? />/' | perl -pe 's/Phrynosoma.*? /Phrynosoma_/' | sed 's/Phrynosoma_goodei x mcallii.*/Phrynosoma_goodei_X_mcallii/' | perl -pe 's/Uta.*? /Uta_/' | perl -pe 's/Holbrookia.*? /Holbrookia_/') > ~/seds.fasta
+cp ~/seds.fasta ~/Files_assignment1/fasta/NADH4.fasta
+rm ~/seds.fasta
+}
+#Execução da função eFetch_history para ir buscar as sequências do gene NADH4 (ND4)
+eFetch_history
+
+#Função para alinhar as sequências através do mafft
+alignment_mafft() {
+mafft ~/Files_assignment1/fasta/NADH4.fasta > ~/Files_assignment1/fastaALN/NADH4_aln.fasta
+}
+#Execução da função de alinhamento
+alignment_mafft
